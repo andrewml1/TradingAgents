@@ -2,9 +2,7 @@ import os
 from datetime import date
 from typing import Dict, Any, Optional
 
-from langchain_anthropic import ChatAnthropic
-
-from cementagents.default_config import DEFAULT_CONFIG
+from cementagents.default_config import DEFAULT_CONFIG, PROVIDER_DEFAULTS
 from cementagents.agents.utils.agent_states import ZonaState
 from cementagents.agents.utils.memory import ZonaMemory
 from cementagents.agents.analysts.data_analyst import create_data_analyst
@@ -27,6 +25,20 @@ class CementAgentsGraph:
     including debate, strategy, risk analysis, and final decision-making.
     """
 
+    @staticmethod
+    def _create_llm(provider: str, model: str):
+        """Instantiate the correct LangChain chat model for the given provider."""
+        if provider == "openai":
+            from langchain_openai import ChatOpenAI
+            return ChatOpenAI(model=model, max_tokens=4096)
+        elif provider == "anthropic":
+            from langchain_anthropic import ChatAnthropic
+            return ChatAnthropic(model=model, max_tokens=4096)
+        else:
+            raise ValueError(
+                f"Proveedor '{provider}' no soportado. Usa 'anthropic' o 'openai'."
+            )
+
     def __init__(self, config: Dict[str, Any] = None):
         """Initialize the CementAgents graph and all sub-components.
 
@@ -36,17 +48,13 @@ class CementAgentsGraph:
         self.config = config or DEFAULT_CONFIG.copy()
 
         # Initialize LLM clients
-        model_name = self.config.get("deep_think_llm", "claude-sonnet-4-6")
-        quick_model = self.config.get("quick_think_llm", "claude-sonnet-4-6")
+        provider = self.config.get("llm_provider", "anthropic")
+        provider_defaults = PROVIDER_DEFAULTS.get(provider, PROVIDER_DEFAULTS["anthropic"])
+        deep_model = self.config.get("deep_think_llm") or provider_defaults["deep_think_llm"]
+        quick_model = self.config.get("quick_think_llm") or provider_defaults["quick_think_llm"]
 
-        self.deep_llm = ChatAnthropic(
-            model=model_name,
-            max_tokens=4096,
-        )
-        self.quick_llm = ChatAnthropic(
-            model=quick_model,
-            max_tokens=4096,
-        )
+        self.deep_llm = self._create_llm(provider, deep_model)
+        self.quick_llm = self._create_llm(provider, quick_model)
 
         # Initialize shared memories
         self.bull_memory = ZonaMemory(self.quick_llm)

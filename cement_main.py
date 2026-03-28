@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Cement Sales Intelligence System - Main Entry Point"""
 
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env from project root
+load_dotenv(Path(__file__).parent / ".env")
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -33,6 +40,11 @@ def analyze(
     all_zonas: bool = typer.Option(
         False, "--all", "-a", help="Analyze all configured zonas"
     ),
+    provider: str = typer.Option(
+        None,
+        "--provider",
+        help="LLM provider: anthropic | openai (default: anthropic)",
+    ),
     debug: bool = typer.Option(
         False, "--debug", "-d", help="Show additional debug output"
     ),
@@ -59,12 +71,31 @@ def analyze(
 
     config = DEFAULT_CONFIG.copy()
     config["risk_profile"] = perfil_riesgo
+    if provider:
+        config["llm_provider"] = provider
+        # Reset model names so PROVIDER_DEFAULTS kick in
+        config["deep_think_llm"] = None
+        config["quick_think_llm"] = None
+
+    active_provider = config.get("llm_provider", "anthropic")
+
+    # Validate API key is present for the chosen provider
+    key_map = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
+    env_var = key_map.get(active_provider)
+    if env_var and not os.environ.get(env_var):
+        console.print(
+            f"[red]Error: La variable de entorno [bold]{env_var}[/bold] no está configurada.[/red]\n"
+            f"Agrega tu API key al archivo [bold].env[/bold] en la raíz del proyecto:\n"
+            f"  {env_var}=tu-key-aqui"
+        )
+        raise typer.Exit(1)
 
     console.print(
         Panel.fit(
             f"[bold blue]Cement Sales Intelligence System[/bold blue]\n"
             f"Argos Colombia | Fecha: {analysis_date} | "
-            f"Perfil de Riesgo: [bold]{perfil_riesgo}[/bold]",
+            f"Perfil de Riesgo: [bold]{perfil_riesgo}[/bold] | "
+            f"Provider: [bold]{active_provider}[/bold]",
             border_style="blue",
         )
     )
