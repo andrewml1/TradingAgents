@@ -1,6 +1,7 @@
 import re
 from langchain_core.messages import HumanMessage
 from cementagents.agents.utils.agent_states import ZonaState
+from cementagents.agents.utils.callbacks import set_active_node
 
 
 def create_risk_analyst(llm):
@@ -18,6 +19,7 @@ def create_risk_analyst(llm):
     """
 
     def risk_node(state: ZonaState) -> dict:
+        set_active_node("risk_analyst")
         zona = state["zona"]
         propuesta = state.get("propuesta_estratega", "")
         datos = state.get("datos_consolidados", "")
@@ -139,6 +141,8 @@ Mantén la orientación estratégica pero con guardarraíles de riesgo apropiado
             f"{content}"
         )
 
+        from cementagents.agents.utils.callbacks import _get_buffer
+        _get_buffer().complete_current_agent()
         return {
             "historial_riesgo": [entrada_riesgo],
             "propuesta_ajustada": propuesta_ajustada,

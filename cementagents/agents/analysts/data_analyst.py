@@ -1,6 +1,7 @@
 import json
 from langchain_core.messages import HumanMessage
 from cementagents.agents.utils.agent_states import ZonaState
+from cementagents.agents.utils.callbacks import set_active_node
 
 
 def create_data_analyst(llm, dataflow_fn):
@@ -16,6 +17,7 @@ def create_data_analyst(llm, dataflow_fn):
     """
 
     def analyst_node(state: ZonaState) -> dict:
+        set_active_node("analyst")
         zona = state["zona"]
         fecha = state["fecha_analisis"]
 
@@ -45,6 +47,8 @@ Usa los números exactos de los datos. Sé preciso y analítico. No agregues inf
 
         response = llm.invoke([HumanMessage(content=prompt)])
 
+        from cementagents.agents.utils.callbacks import _get_buffer
+        _get_buffer().complete_current_agent()
         return {
             "datos_consolidados": response.content,
         }

@@ -1,6 +1,7 @@
 import re
 from langchain_core.messages import HumanMessage
 from cementagents.agents.utils.agent_states import ZonaState
+from cementagents.agents.utils.callbacks import set_active_node
 
 
 def create_debate_moderator(llm):
@@ -18,6 +19,7 @@ def create_debate_moderator(llm):
     """
 
     def moderator_node(state: ZonaState) -> dict:
+        set_active_node("debate_moderator")
         zona = state["zona"]
         argumentos_bullish = state.get("argumentos_bullish", [])
         argumentos_bearish = state.get("argumentos_bearish", [])
@@ -86,6 +88,8 @@ FACTORES_CLAVE: [Lista de 3-5 factores determinantes separados por punto y coma]
             f"{content}"
         )
 
+        from cementagents.agents.utils.callbacks import _get_buffer
+        _get_buffer().complete_current_agent()
         return {
             "historial_debate": [entrada_debate],
             "veredicto": veredicto,

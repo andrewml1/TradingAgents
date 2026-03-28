@@ -1,6 +1,7 @@
 import re
 from langchain_core.messages import HumanMessage
 from cementagents.agents.utils.agent_states import ZonaState
+from cementagents.agents.utils.callbacks import set_active_node
 
 
 def create_manager(llm, memory=None):
@@ -19,6 +20,7 @@ def create_manager(llm, memory=None):
     """
 
     def manager_node(state: ZonaState) -> dict:
+        set_active_node("manager")
         zona = state["zona"]
         fecha = state.get("fecha_analisis", "")
         veredicto = state.get("veredicto", "NEUTRAL")
@@ -147,6 +149,8 @@ CONDICIONES_REVISION:
             situacion_resumen = f"Zona {zona}: {veredicto} ({confianza:.0%} confianza), Riesgo: {scorecard_riesgo[:100]}"
             memory.update_memory(zona, situacion_resumen, f"Decisión: {decision_final}")
 
+        from cementagents.agents.utils.callbacks import _get_buffer
+        _get_buffer().complete_current_agent()
         return {
             "decision_final": decision_final,
             "acciones_autorizadas": acciones_autorizadas,

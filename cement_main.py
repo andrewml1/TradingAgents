@@ -2,8 +2,14 @@
 """Cement Sales Intelligence System - Main Entry Point"""
 
 import os
+import sys
 from pathlib import Path
 from dotenv import load_dotenv
+
+# Force UTF-8 output on Windows
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 # Load .env from project root
 load_dotenv(Path(__file__).parent / ".env")
@@ -44,6 +50,9 @@ def analyze(
         None,
         "--provider",
         help="LLM provider: anthropic | openai (default: anthropic)",
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v", help="Mostrar trazas de agentes y tokens en tiempo real"
     ),
     debug: bool = typer.Option(
         False, "--debug", "-d", help="Show additional debug output"
@@ -100,10 +109,9 @@ def analyze(
         )
     )
 
-    graph = CementAgentsGraph(config=config)
+    graph = CementAgentsGraph(config=config, verbose=verbose)
 
     if zona:
-        # Validate zona name
         available = config["zonas"]
         if zona not in available:
             console.print(
@@ -112,12 +120,23 @@ def analyze(
             )
             raise typer.Exit(1)
 
-        with console.status(
-            f"[yellow]Analizando zona [bold]{zona}[/bold]...[/yellow]"
-        ):
-            result = graph.analyze_zona(
-                zona, perfil_riesgo=perfil_riesgo, fecha=analysis_date
-            )
+        if verbose:
+            from cementagents.ui.dashboard import CementLiveDashboard, update_display
+            from cementagents.agents.utils.callbacks import StreamingTraceCallback
+
+            with CementLiveDashboard(zona) as dashboard:
+                # El callback actualiza el buffer; el Live refresca el layout
+                result = graph.analyze_zona(
+                    zona, perfil_riesgo=perfil_riesgo, fecha=analysis_date
+                )
+                dashboard.refresh()
+        else:
+            with console.status(
+                f"[yellow]Analizando zona [bold]{zona}[/bold]...[/yellow]"
+            ):
+                result = graph.analyze_zona(
+                    zona, perfil_riesgo=perfil_riesgo, fecha=analysis_date
+                )
 
         report = CementPropagator.format_report(result)
         console.print(report)
@@ -126,7 +145,6 @@ def analyze(
             console.print("\n[dim]--- DEBUG: Argumentos Alcistas ---[/dim]")
             for i, arg in enumerate(result.get("argumentos_bullish", []), 1):
                 console.print(f"[dim]{i}. {arg[:300]}...[/dim]")
-
             console.print("\n[dim]--- DEBUG: Argumentos Bajistas ---[/dim]")
             for i, arg in enumerate(result.get("argumentos_bearish", []), 1):
                 console.print(f"[dim]{i}. {arg[:300]}...[/dim]")
@@ -136,13 +154,21 @@ def analyze(
         zonas_list = config["zonas"]
 
         for z in zonas_list:
-            with console.status(
-                f"[yellow]Analizando [bold]{z}[/bold] "
-                f"({zonas_list.index(z) + 1}/{len(zonas_list)})...[/yellow]"
-            ):
-                results[z] = graph.analyze_zona(
-                    z, perfil_riesgo=perfil_riesgo, fecha=analysis_date
-                )
+            if verbose:
+                from cementagents.ui.dashboard import CementLiveDashboard
+                with CementLiveDashboard(z) as dashboard:
+                    results[z] = graph.analyze_zona(
+                        z, perfil_riesgo=perfil_riesgo, fecha=analysis_date
+                    )
+                    dashboard.refresh()
+            else:
+                with console.status(
+                    f"[yellow]Analizando [bold]{z}[/bold] "
+                    f"({zonas_list.index(z) + 1}/{len(zonas_list)})...[/yellow]"
+                ):
+                    results[z] = graph.analyze_zona(
+                        z, perfil_riesgo=perfil_riesgo, fecha=analysis_date
+                    )
 
         # Summary table
         table = Table(

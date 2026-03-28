@@ -26,26 +26,31 @@ class CementAgentsGraph:
     """
 
     @staticmethod
-    def _create_llm(provider: str, model: str):
+    def _create_llm(provider: str, model: str, streaming: bool = False, callbacks=None):
         """Instantiate the correct LangChain chat model for the given provider."""
+        kwargs = {"max_tokens": 4096, "streaming": streaming}
+        if callbacks:
+            kwargs["callbacks"] = callbacks
         if provider == "openai":
             from langchain_openai import ChatOpenAI
-            return ChatOpenAI(model=model, max_tokens=4096)
+            return ChatOpenAI(model=model, **kwargs)
         elif provider == "anthropic":
             from langchain_anthropic import ChatAnthropic
-            return ChatAnthropic(model=model, max_tokens=4096)
+            return ChatAnthropic(model=model, **kwargs)
         else:
             raise ValueError(
                 f"Proveedor '{provider}' no soportado. Usa 'anthropic' o 'openai'."
             )
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: Dict[str, Any] = None, verbose: bool = False):
         """Initialize the CementAgents graph and all sub-components.
 
         Args:
             config: Configuration dictionary. Falls back to DEFAULT_CONFIG if None.
+            verbose: If True, stream LLM tokens to stdout and show agent traces.
         """
         self.config = config or DEFAULT_CONFIG.copy()
+        self.verbose = verbose
 
         # Initialize LLM clients
         provider = self.config.get("llm_provider", "anthropic")
@@ -53,8 +58,13 @@ class CementAgentsGraph:
         deep_model = self.config.get("deep_think_llm") or provider_defaults["deep_think_llm"]
         quick_model = self.config.get("quick_think_llm") or provider_defaults["quick_think_llm"]
 
-        self.deep_llm = self._create_llm(provider, deep_model)
-        self.quick_llm = self._create_llm(provider, quick_model)
+        callbacks = None
+        if verbose:
+            from cementagents.agents.utils.callbacks import StreamingTraceCallback
+            callbacks = [StreamingTraceCallback()]
+
+        self.deep_llm = self._create_llm(provider, deep_model, streaming=verbose, callbacks=callbacks)
+        self.quick_llm = self._create_llm(provider, quick_model, streaming=verbose, callbacks=callbacks)
 
         # Initialize shared memories
         self.bull_memory = ZonaMemory(self.quick_llm)

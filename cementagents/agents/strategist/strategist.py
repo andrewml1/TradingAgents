@@ -1,5 +1,6 @@
 from langchain_core.messages import HumanMessage
 from cementagents.agents.utils.agent_states import ZonaState
+from cementagents.agents.utils.callbacks import set_active_node
 
 
 def create_strategist(llm, memory=None):
@@ -18,6 +19,7 @@ def create_strategist(llm, memory=None):
     """
 
     def strategist_node(state: ZonaState) -> dict:
+        set_active_node("strategist")
         zona = state["zona"]
         veredicto = state.get("veredicto", "NEUTRAL")
         confianza = state.get("confianza", 0.5)
@@ -113,6 +115,8 @@ Sé específico, usa los números del análisis y propón acciones que el equipo
 
         response = llm.invoke([HumanMessage(content=prompt)])
 
+        from cementagents.agents.utils.callbacks import _get_buffer
+        _get_buffer().complete_current_agent()
         return {
             "propuesta_estratega": response.content,
         }

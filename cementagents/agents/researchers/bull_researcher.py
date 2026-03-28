@@ -1,5 +1,6 @@
 from langchain_core.messages import HumanMessage
 from cementagents.agents.utils.agent_states import ZonaState
+from cementagents.agents.utils.callbacks import set_active_node
 
 
 def create_bull_researcher(llm, memory=None):
@@ -15,6 +16,7 @@ def create_bull_researcher(llm, memory=None):
     """
 
     def bull_node(state: ZonaState) -> dict:
+        set_active_node("bull_researcher")
         zona = state["zona"]
         datos = state.get("datos_consolidados", "")
         argumentos_bearish = state.get("argumentos_bearish", [])
@@ -69,6 +71,8 @@ Presenta un argumento PERSUASIVO, basado en los datos, que justifique una postur
 
         argumento = f"[Ronda {rondas + 1}] Bull Researcher - {zona}:\n{response.content}"
 
+        from cementagents.agents.utils.callbacks import _get_buffer
+        _get_buffer().complete_current_agent()
         return {
             "argumentos_bullish": [argumento],
         }
