@@ -27,6 +27,8 @@
 
 # TradingAgents: Multi-Agents LLM Financial Trading Framework
 
+> **Este repositorio también incluye [Cement Sales Intelligence](#cement-sales-intelligence-sistema-de-inteligencia-comercial-de-cemento), un sistema multi-agente especializado para análisis del mercado de cemento en Colombia.**
+
 ## News
 - [2026-03] **TradingAgents v0.2.2** released with GPT-5.4/Gemini 3.1/Claude 4.6 model coverage, five-tier rating scale, OpenAI Responses API, Anthropic effort control, and cross-platform stability.
 - [2026-02] **TradingAgents v0.2.0** released with multi-provider LLM support (GPT-5.x, Gemini 3.x, Claude 4.x, Grok 4.x) and improved system architecture.
@@ -199,6 +201,167 @@ print(decision)
 ```
 
 See `tradingagents/default_config.py` for all configuration options.
+
+---
+
+# Cement Sales Intelligence: Sistema de Inteligencia Comercial de Cemento
+
+Sistema multi-agente construido sobre la misma arquitectura de TradingAgents, adaptado para el análisis estratégico del mercado de cemento en Colombia. Genera recomendaciones de pricing, mix de productos e inversión comercial por zona geográfica, con análisis de riesgos integrado.
+
+<p align="center">
+  <img src="assets/schema.png" style="width: 100%; height: auto;">
+</p>
+
+## Arquitectura de Agentes
+
+El sistema replica el flujo Analista → Investigadores → Debate → Estratega → Riesgos → Manager, adaptado al dominio de cemento:
+
+| Agente | Equivalente TradingAgents | Función |
+|--------|--------------------------|---------|
+| **Analista de Datos** | Analyst Team | Consolida DANE, SAP/ERP, precios competencia |
+| **Investigador Bullish** | Bull Researcher | Construye el caso optimista por zona |
+| **Investigador Bearish** | Bear Researcher | Construye el caso pesimista por zona |
+| **Moderador de Debate** | Invest Judge | Produce veredicto BULLISH / BEARISH / NEUTRAL |
+| **Estratega** | Trader | Traduce el veredicto en estrategia comercial |
+| **Analista de Riesgos** | Risk Management | Scorecard de riesgos en 6 dimensiones |
+| **Manager** | Portfolio Manager | Decisión final: EJECUTAR / MODIFICAR / RECHAZAR |
+
+### Flujo del Grafo
+
+```
+analyst → [bull_researcher ‖ bear_researcher] → debate_moderator
+       ↺ (hasta 2 rondas de debate)
+       → strategist → risk_analyst → manager → END
+```
+
+### Zonas Comerciales
+
+1. Costa Caribe (Barranquilla, Cartagena, Santa Marta)
+2. Antioquia (Medellín, Valle de Aburrá)
+3. Centro (Bogotá, Cundinamarca)
+4. Sur (Cali, Valle del Cauca, Cauca)
+5. Eje Cafetero (Pereira, Manizales, Armenia)
+6. Santanderes (Bucaramanga, Cúcuta)
+7. Llanos (Villavicencio, Meta)
+
+## Instalación y Uso
+
+### Dependencias adicionales
+
+```bash
+pip install langchain-anthropic langgraph
+```
+
+### API Key requerida
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### CLI
+
+```bash
+# Analizar una zona específica
+python cement_main.py --zona "Sur" --perfil Agresivo
+
+# Analizar una zona con perfil conservador
+python cement_main.py --zona "Antioquia" --perfil Conservador
+
+# Analizar todas las zonas (tabla resumen)
+python cement_main.py --all --perfil Neutral
+```
+
+**Perfiles de riesgo disponibles:** `Agresivo` | `Neutral` | `Conservador`
+
+### Uso como módulo Python
+
+```python
+from cementagents import CementAgentsGraph
+from cementagents.graph.propagation import CementPropagator
+
+graph = CementAgentsGraph()
+
+# Analizar una zona
+result = graph.analyze_zona("Sur", perfil_riesgo="Agresivo")
+print(f"Veredicto: {result['veredicto']} ({result['confianza']:.0%})")
+print(f"Decisión:  {result['decision_final']}")
+print(CementPropagator.format_report(result))
+
+# Analizar todas las zonas
+resultados = graph.analyze_all_zonas(perfil_riesgo="Neutral")
+for zona, r in resultados.items():
+    print(f"{zona}: {r['veredicto']} → {r['decision_final']}")
+```
+
+### Configuración
+
+```python
+from cementagents import CementAgentsGraph
+from cementagents.default_config import DEFAULT_CONFIG
+
+config = DEFAULT_CONFIG.copy()
+config["max_debate_rounds"] = 3          # Rondas de debate por zona
+config["max_risk_discuss_rounds"] = 2    # Rondas de análisis de riesgo
+config["risk_profile"] = "Conservador"  # Perfil de riesgo global
+config["use_mock_data"] = True           # False para conectar a datos reales
+
+graph = CementAgentsGraph(config=config)
+```
+
+Ver [`cementagents/default_config.py`](cementagents/default_config.py) para todas las opciones.
+
+### Ejemplo de output
+
+```
+┌─────────────────────────────────────────────────┐
+│ ZONA: Sur | Fecha: 2026-03-28 | Perfil: Agresivo│
+├─────────────────────────────────────────────────┤
+│ VEREDICTO:  BULLISH (confianza: 82%)            │
+│ DECISIÓN:   EJECUTAR                            │
+├─────────────────────────────────────────────────┤
+│ Propuesta Estratega:                            │
+│   Pricing:  Incrementar 3.5%                   │
+│   Volumen:  Push clientes tier 1               │
+│   Mix:      Priorizar cemento gris premium     │
+├─────────────────────────────────────────────────┤
+│ Scorecard de Riesgos:                           │
+│   Concentración clientes:  BAJO  (3/10)        │
+│   Guerra de precios:       BAJO  (2/10)        │
+│   Inventario:              BAJO  (2/10)        │
+│   Cartera:                 BAJO  (2/10)        │
+│   RIESGO GLOBAL:           BAJO                │
+└─────────────────────────────────────────────────┘
+```
+
+### Estructura del Proyecto
+
+```
+cementagents/
+├── agents/
+│   ├── analysts/data_analyst.py       # Agente consolidador de datos
+│   ├── researchers/
+│   │   ├── bull_researcher.py         # Investigador bullish
+│   │   └── bear_researcher.py         # Investigador bearish
+│   ├── debate/debate_moderator.py     # Moderador y árbitro
+│   ├── strategist/strategist.py       # Estratega comercial
+│   ├── risk_mgmt/risk_analyst.py      # Analista de riesgos
+│   ├── managers/manager.py            # Manager decisor
+│   └── utils/
+│       ├── agent_states.py            # ZonaState TypedDict
+│       └── memory.py                  # Memoria por zona
+├── dataflows/
+│   └── mock_data.py                   # Datos simulados 2026 (7 zonas)
+├── graph/
+│   ├── cement_graph.py                # Orquestador principal
+│   ├── setup.py                       # Construcción del grafo LangGraph
+│   ├── conditional_logic.py           # Condiciones de routing
+│   └── propagation.py                 # Extracción y formato de resultados
+├── schemas/zona_schema.py             # Modelos Pydantic
+└── default_config.py                  # Configuración por defecto
+cement_main.py                         # CLI entry point
+```
+
+---
 
 ## Contributing
 
