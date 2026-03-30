@@ -305,33 +305,36 @@ def update_display(layout: Layout):
 
 class CementLiveDashboard:
     """
-    Context manager que ejecuta el dashboard TUI en un hilo de refresco
-    mientras el grafo de agentes corre en el hilo principal.
+    Context manager que ejecuta el dashboard TUI.
+    Un hilo de fondo actualiza los datos del layout; Rich maneja
+    el refresco visual por su cuenta — sin doble refresco ni parpadeo.
     """
 
-    def __init__(self, zona: str, refresh_per_second: int = 4):
+    def __init__(self, zona: str, refresh_per_second: int = 2):
         message_buffer.set_zona(zona)
         self.layout = create_layout()
-        self.live   = Live(self.layout, screen=True, refresh_per_second=refresh_per_second)
+        # auto_refresh=True: Rich refresca solo, sin que nosotros llamemos .refresh()
+        self.live   = Live(self.layout, screen=True, auto_refresh=True,
+                           refresh_per_second=refresh_per_second)
         self._stop  = threading.Event()
         self._thread: threading.Thread | None = None
 
-    def _refresh_loop(self):
+    def _data_loop(self):
+        """Actualiza los datos del layout cada 500ms — Rich se encarga de dibujar."""
         while not self._stop.is_set():
             update_display(self.layout)
-            self.live.refresh()
-            time.sleep(0.25)
+            time.sleep(0.5)
 
     def __enter__(self):
         update_display(self.layout)
         self.live.__enter__()
-        self._thread = threading.Thread(target=self._refresh_loop, daemon=True)
+        self._thread = threading.Thread(target=self._data_loop, daemon=True)
         self._thread.start()
         return self
 
     def refresh(self):
+        """Forzar una actualización de datos (no del render — eso lo hace Rich)."""
         update_display(self.layout)
-        self.live.refresh()
 
     def __exit__(self, *args):
         self._stop.set()
@@ -339,5 +342,4 @@ class CementLiveDashboard:
             self._thread.join(timeout=2)
         message_buffer.mark_all_complete()
         update_display(self.layout)
-        self.live.refresh()
         self.live.__exit__(*args)

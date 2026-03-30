@@ -6,212 +6,131 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Force UTF-8 output on Windows
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
     sys.stderr.reconfigure(encoding="utf-8")
 
-# Load .env from project root
 load_dotenv(Path(__file__).parent / ".env")
 
 import typer
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich import print as rprint
 from datetime import date
 
 from cementagents import CementAgentsGraph
 from cementagents.default_config import DEFAULT_CONFIG
 from cementagents.graph.propagation import CementPropagator
 
-app = typer.Typer(
-    name="cement-agents",
-    help="Cement Sales Intelligence Multi-Agent System for Argos Colombia",
-)
+app = typer.Typer(name="cement-agents", help="Cement Sales Intelligence — Argos Colombia")
 console = Console()
+
+VEREDICTO_COLORS = {"BULLISH": "green", "BEARISH": "red",    "NEUTRAL": "yellow"}
+DECISION_COLORS  = {"EJECUTAR": "green","MODIFICAR": "yellow","RECHAZAR": "red"}
+AGENTES          = ["analista", "bullish", "bearish", "debate", "estratega", "riesgos", "manager"]
+
+
+def _validate_key(config):
+    key_map = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
+    env_var = key_map.get(config.get("llm_provider", "anthropic"))
+    if env_var and not os.environ.get(env_var):
+        console.print(f"[red]Falta [bold]{env_var}[/bold] en el archivo .env[/red]")
+        raise typer.Exit(1)
+
+
+def _run(graph, zona, perfil_riesgo, analysis_date, verbose):
+    if verbose:
+        from cementagents.ui.dashboard import CementLiveDashboard
+        with CementLiveDashboard(zona) as db:
+            result = graph.analyze_zona(zona, perfil_riesgo=perfil_riesgo, fecha=analysis_date)
+            db.refresh()
+    else:
+        with console.status(f"[yellow]Analizando [bold]{zona}[/bold]...[/yellow]"):
+            result = graph.analyze_zona(zona, perfil_riesgo=perfil_riesgo, fecha=analysis_date)
+    return result
 
 
 @app.command()
-def analyze(
-    zona: str = typer.Option(
-        None, "--zona", "-z", help="Specific zona to analyze"
-    ),
-    perfil_riesgo: str = typer.Option(
-        "Neutral",
-        "--perfil",
-        "-p",
-        help="Risk profile: Agresivo | Neutral | Conservador",
-    ),
-    all_zonas: bool = typer.Option(
-        False, "--all", "-a", help="Analyze all configured zonas"
-    ),
-    provider: str = typer.Option(
-        None,
-        "--provider",
-        help="LLM provider: anthropic | openai (default: anthropic)",
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Mostrar trazas de agentes y tokens en tiempo real"
-    ),
-    debug: bool = typer.Option(
-        False, "--debug", "-d", help="Show additional debug output"
-    ),
-    fecha: str = typer.Option(
-        None,
-        "--fecha",
-        "-f",
-        help="Analysis date (YYYY-MM-DD). Defaults to today.",
-    ),
+def main(
+    zona: str = typer.Option(None, "--zona", "-z", help="Zona a analizar"),
+    all_zonas: bool = typer.Option(False, "--all", "-a", help="Analizar todas las zonas"),
+    perfil_riesgo: str = typer.Option("Neutral", "--perfil", "-p", help="Agresivo | Neutral | Conservador"),
+    provider: str = typer.Option(None, "--provider", help="anthropic | openai"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Dashboard en tiempo real"),
+    agente: str = typer.Option(None, "--agente",
+                               help=f"Ver detalle de agente: {' | '.join(AGENTES)}"),
+    fecha: str = typer.Option(None, "--fecha", "-f", help="Fecha YYYY-MM-DD (default: hoy)"),
 ):
-    """Run cement market analysis for one or all zonas."""
+    """Ejecutar análisis de mercado de cemento por zona."""
 
     if not zona and not all_zonas:
-        console.print(
-            "[red]Error: Debes especificar --zona ZONA o --all para analizar todas.[/red]"
-        )
-        console.print(
-            "\nZonas disponibles: "
-            + ", ".join(DEFAULT_CONFIG["zonas"])
-        )
+        console.print("[red]Especifica --zona NOMBRE o --all[/red]")
+        console.print("Zonas: " + ", ".join(DEFAULT_CONFIG["zonas"]))
         raise typer.Exit(1)
 
     analysis_date = fecha or str(date.today())
-
     config = DEFAULT_CONFIG.copy()
     config["risk_profile"] = perfil_riesgo
     if provider:
         config["llm_provider"] = provider
-        # Reset model names so PROVIDER_DEFAULTS kick in
         config["deep_think_llm"] = None
         config["quick_think_llm"] = None
 
+    _validate_key(config)
     active_provider = config.get("llm_provider", "anthropic")
 
-    # Validate API key is present for the chosen provider
-    key_map = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
-    env_var = key_map.get(active_provider)
-    if env_var and not os.environ.get(env_var):
-        console.print(
-            f"[red]Error: La variable de entorno [bold]{env_var}[/bold] no está configurada.[/red]\n"
-            f"Agrega tu API key al archivo [bold].env[/bold] en la raíz del proyecto:\n"
-            f"  {env_var}=tu-key-aqui"
-        )
-        raise typer.Exit(1)
-
-    console.print(
-        Panel.fit(
-            f"[bold blue]Cement Sales Intelligence System[/bold blue]\n"
-            f"Argos Colombia | Fecha: {analysis_date} | "
-            f"Perfil de Riesgo: [bold]{perfil_riesgo}[/bold] | "
-            f"Provider: [bold]{active_provider}[/bold]",
-            border_style="blue",
-        )
-    )
+    console.print(Panel.fit(
+        f"[bold blue]Cement Sales Intelligence System[/bold blue]\n"
+        f"Fecha: {analysis_date} | Perfil: [bold]{perfil_riesgo}[/bold] | Provider: [bold]{active_provider}[/bold]",
+        border_style="blue",
+    ))
 
     graph = CementAgentsGraph(config=config, verbose=verbose)
 
+    # ── Una zona ──────────────────────────────────────────────────────────────
     if zona:
-        available = config["zonas"]
-        if zona not in available:
-            console.print(
-                f"[red]Error: Zona '{zona}' no encontrada.[/red]\n"
-                f"Zonas disponibles: {', '.join(available)}"
-            )
+        if zona not in config["zonas"]:
+            console.print(f"[red]Zona '{zona}' no encontrada.[/red]")
+            console.print("Disponibles: " + ", ".join(config["zonas"]))
             raise typer.Exit(1)
 
-        if verbose:
-            from cementagents.ui.dashboard import CementLiveDashboard, update_display
-            from cementagents.agents.utils.callbacks import StreamingTraceCallback
+        result = _run(graph, zona, perfil_riesgo, analysis_date, verbose)
+        console.print(CementPropagator.format_report(result))
 
-            with CementLiveDashboard(zona) as dashboard:
-                # El callback actualiza el buffer; el Live refresca el layout
-                result = graph.analyze_zona(
-                    zona, perfil_riesgo=perfil_riesgo, fecha=analysis_date
-                )
-                dashboard.refresh()
+        if agente:
+            console.print(CementPropagator.format_agent_detail(result, agente))
         else:
-            with console.status(
-                f"[yellow]Analizando zona [bold]{zona}[/bold]...[/yellow]"
-            ):
-                result = graph.analyze_zona(
-                    zona, perfil_riesgo=perfil_riesgo, fecha=analysis_date
-                )
-
-        report = CementPropagator.format_report(result)
-        console.print(report)
-
-        if debug:
-            console.print("\n[dim]--- DEBUG: Argumentos Alcistas ---[/dim]")
-            for i, arg in enumerate(result.get("argumentos_bullish", []), 1):
-                console.print(f"[dim]{i}. {arg[:300]}...[/dim]")
-            console.print("\n[dim]--- DEBUG: Argumentos Bajistas ---[/dim]")
-            for i, arg in enumerate(result.get("argumentos_bearish", []), 1):
-                console.print(f"[dim]{i}. {arg[:300]}...[/dim]")
-
-    elif all_zonas:
-        results = {}
-        zonas_list = config["zonas"]
-
-        for z in zonas_list:
-            if verbose:
-                from cementagents.ui.dashboard import CementLiveDashboard
-                with CementLiveDashboard(z) as dashboard:
-                    results[z] = graph.analyze_zona(
-                        z, perfil_riesgo=perfil_riesgo, fecha=analysis_date
-                    )
-                    dashboard.refresh()
-            else:
-                with console.status(
-                    f"[yellow]Analizando [bold]{z}[/bold] "
-                    f"({zonas_list.index(z) + 1}/{len(zonas_list)})...[/yellow]"
-                ):
-                    results[z] = graph.analyze_zona(
-                        z, perfil_riesgo=perfil_riesgo, fecha=analysis_date
-                    )
-
-        # Summary table
-        table = Table(
-            title=f"Resumen de Analisis - Todas las Zonas | {analysis_date}",
-            show_header=True,
-            header_style="bold magenta",
-        )
-        table.add_column("Zona", style="cyan", min_width=15)
-        table.add_column("Veredicto", style="bold", justify="center", min_width=12)
-        table.add_column("Confianza", justify="center", min_width=10)
-        table.add_column("Decision", style="bold", justify="center", min_width=12)
-        table.add_column("Perfil Riesgo", justify="center", min_width=14)
-
-        colors = {
-            "BULLISH": "green",
-            "BEARISH": "red",
-            "NEUTRAL": "yellow",
-        }
-        decision_colors = {
-            "EJECUTAR": "green",
-            "MODIFICAR": "yellow",
-            "RECHAZAR": "red",
-        }
-
-        for z, r in results.items():
-            v = r.get("veredicto", "N/A")
-            d = r.get("decision_final", "N/A")
-            conf = r.get("confianza", 0.0)
-            table.add_row(
-                z,
-                f"[{colors.get(v, 'white')}]{v}[/]",
-                f"{conf:.0%}",
-                f"[{decision_colors.get(d, 'white')}]{d}[/]",
-                perfil_riesgo,
+            console.print(
+                f"\n[dim]Tip: agrega [bold]--agente NOMBRE[/bold] para ver el análisis de un agente específico.[/dim]\n"
+                f"[dim]Opciones: {', '.join(AGENTES)}[/dim]"
             )
 
-        console.print(table)
+    # ── Todas las zonas ───────────────────────────────────────────────────────
+    elif all_zonas:
+        results = {}
+        for z in config["zonas"]:
+            results[z] = _run(graph, z, perfil_riesgo, analysis_date, verbose)
 
-        # Print detailed reports if debug mode
-        if debug:
-            for z, r in results.items():
-                console.print(f"\n[bold cyan]--- Detalle: {z} ---[/bold cyan]")
-                console.print(CementPropagator.format_report(r))
+        table = Table(
+            title=f"Resumen — Todas las Zonas | {analysis_date}",
+            header_style="bold magenta",
+        )
+        table.add_column("Zona",          style="cyan",  min_width=15)
+        table.add_column("Veredicto",     justify="center", min_width=12)
+        table.add_column("Confianza",     justify="center", min_width=10)
+        table.add_column("Decision",      justify="center", min_width=12)
+        table.add_column("Perfil Riesgo", justify="center", min_width=14)
+
+        for z, r in results.items():
+            v, d = r.get("veredicto", "N/A"), r.get("decision_final", "N/A")
+            table.add_row(
+                z,
+                f"[{VEREDICTO_COLORS.get(v,'white')}]{v}[/]",
+                f"{r.get('confianza', 0):.0%}",
+                f"[{DECISION_COLORS.get(d,'white')}]{d}[/]",
+                perfil_riesgo,
+            )
+        console.print(table)
 
 
 if __name__ == "__main__":
