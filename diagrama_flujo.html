@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TradingAgents — Flujo de Análisis Bursátil</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f4f8;
+      color: #1a202c;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      color: #1a365d;
+      letter-spacing: 0.5px;
+    }
+
+    header p {
+      margin-top: 8px;
+      font-size: 1rem;
+      color: #4a5568;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 36px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+
+    .dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-blue   { background: #3182ce; }
+    .dot-green  { background: #38a169; }
+    .dot-yellow { background: #d69e2e; }
+    .dot-red    { background: #e53e3e; }
+    .dot-purple { background: #805ad5; }
+
+    .diagram-container {
+      background: white;
+      border-radius: 16px;
+      padding: 32px 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      max-width: 1100px;
+      margin: 0 auto 40px;
+      overflow-x: auto;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    .stages {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .stage-card {
+      background: white;
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      border-left: 4px solid #ccc;
+    }
+
+    .stage-card.blue   { border-color: #3182ce; }
+    .stage-card.green  { border-color: #38a169; }
+    .stage-card.yellow { border-color: #d69e2e; }
+    .stage-card.red    { border-color: #e53e3e; }
+    .stage-card.purple { border-color: #805ad5; }
+
+    .stage-card h3 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      color: #718096;
+    }
+
+    .stage-card p {
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: #2d3748;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 0.78rem;
+      color: #a0aec0;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Sistema de Análisis Bursátil con Inteligencia Artificial</h1>
+  <p>Este diagrama muestra cómo el sistema evalúa una acción del mercado utilizando múltiples agentes de IA que trabajan en equipo — desde la recopilación de datos hasta la decisión final de inversión.</p>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot dot-blue"></div> Entrada / Salida</div>
+  <div class="legend-item"><div class="dot dot-green"></div> Recolección de Información</div>
+  <div class="legend-item"><div class="dot dot-yellow"></div> Investigación y Debate</div>
+  <div class="legend-item"><div class="dot dot-red"></div> Evaluación de Riesgo</div>
+  <div class="legend-item"><div class="dot dot-purple"></div> Decisión Final</div>
+</div>
+
+<div class="diagram-container">
+  <div class="mermaid">
+flowchart TD
+
+    %% ── ENTRADA ──────────────────────────────────────────
+    A(["👤 INICIO\nEl usuario indica:\n• Qué acción analizar\n• Fecha de análisis"])
+
+    %% ── RECOLECCIÓN EN PARALELO ──────────────────────────
+    subgraph DATOS ["📊 ETAPA 1 — RECOLECCIÓN DE INFORMACIÓN (en paralelo)"]
+        direction LR
+        B1["📈 Analista de Mercado\nRevisa precios históricos\ne indicadores de tendencia"]
+        B2["🏦 Analista Fundamental\nRevisa la salud financiera\nde la empresa"]
+        B3["📰 Analista de Noticias\nRevisa eventos y\nnoticias recientes"]
+        B4["💬 Analista de Sentimiento\nRevisa la opinión\ndel mercado"]
+    end
+
+    %% ── INVESTIGACIÓN ────────────────────────────────────
+    subgraph INVEST ["🔍 ETAPA 2 — INVESTIGACIÓN"]
+        direction LR
+        C1["🟢 Investigador Optimista\nPrepara los argumentos\na FAVOR de comprar"]
+        C2["🔴 Investigador Pesimista\nPrepara los argumentos\nEN CONTRA de comprar"]
+    end
+
+    %% ── DEBATE ───────────────────────────────────────────
+    D{{"🤝 ETAPA 3 — DEBATE\nAmbos investigadores intercambian\nargumentos (hasta 2 rondas)"}}
+
+    %% ── VEREDICTO INVESTIGACION ──────────────────────────
+    E["🧑‍💼 Gerente de Investigación\nEvalúa el debate y emite\nuna recomendación fundamentada"]
+
+    %% ── PLAN DE INVERSION ────────────────────────────────
+    F["📋 Elaboración del Plan\nEl Trader convierte la recomendación\nen un plan de inversión concreto"]
+
+    %% ── RIESGO ───────────────────────────────────────────
+    subgraph RIESGO ["⚠️ ETAPA 4 — EVALUACIÓN DE RIESGO"]
+        direction LR
+        G1["🔥 Perfil Agresivo\nTolera mayor riesgo\nbuscando mayor retorno"]
+        G2["⚖️ Perfil Neutral\nEquilibra riesgo\ny rentabilidad"]
+        G3["🛡️ Perfil Conservador\nPrioriza la\nprotección del capital"]
+    end
+
+    %% ── DECISION FINAL ───────────────────────────────────
+    H["👔 Gerente de Portafolio\nRevisa todo el análisis\ny toma la decisión final"]
+
+    %% ── SALIDA ───────────────────────────────────────────
+    I{{"✅ DECISIÓN FINAL"}}
+    J(["🟢 COMPRAR"])
+    K(["🟡 MANTENER"])
+    L(["🔴 VENDER"])
+
+    %% ── CONEXIONES ───────────────────────────────────────
+    A --> DATOS
+    DATOS --> INVEST
+    C1 --> D
+    C2 --> D
+    D --> E
+    E --> F
+    F --> RIESGO
+    RIESGO --> H
+    H --> I
+    I --> J
+    I --> K
+    I --> L
+
+    %% ── ESTILOS ──────────────────────────────────────────
+    classDef entrada    fill:#ebf8ff,stroke:#3182ce,color:#1a365d,font-weight:bold
+    classDef analista   fill:#f0fff4,stroke:#38a169,color:#1c4532
+    classDef investig   fill:#fffff0,stroke:#d69e2e,color:#744210
+    classDef debate     fill:#fefcbf,stroke:#d69e2e,color:#744210,font-weight:bold
+    classDef gerente    fill:#fffff0,stroke:#d69e2e,color:#744210
+    classDef riesgo     fill:#fff5f5,stroke:#e53e3e,color:#742a2a
+    classDef decision   fill:#faf5ff,stroke:#805ad5,color:#44337a,font-weight:bold
+    classDef comprar    fill:#c6f6d5,stroke:#276749,color:#1c4532,font-weight:bold
+    classDef mantener   fill:#fefcbf,stroke:#975a16,color:#744210,font-weight:bold
+    classDef vender     fill:#fed7d7,stroke:#c53030,color:#742a2a,font-weight:bold
+
+    class A entrada
+    class B1,B2,B3,B4 analista
+    class C1,C2 investig
+    class D debate
+    class E,F gerente
+    class G1,G2,G3 riesgo
+    class H,I decision
+    class J comprar
+    class K mantener
+    class L vender
+  </div>
+</div>
+
+<div class="stages">
+  <div class="stage-card blue">
+    <h3>Entrada</h3>
+    <p>El usuario indica la acción (ej. Apple, Tesla) y la fecha de análisis. A partir de ahí, el sistema trabaja de forma automática.</p>
+  </div>
+  <div class="stage-card green">
+    <h3>Recolección de Información</h3>
+    <p>Cuatro analistas especializados trabajan <strong>al mismo tiempo</strong> revisando precios, estados financieros, noticias y sentimiento del mercado. Los datos provienen de fuentes públicas como Yahoo Finance.</p>
+  </div>
+  <div class="stage-card yellow">
+    <h3>Investigación y Debate</h3>
+    <p>Con toda la información disponible, un investigador construye el caso a favor de comprar y otro en contra. Luego debaten sus posiciones para que emerjan los argumentos más sólidos.</p>
+  </div>
+  <div class="stage-card yellow">
+    <h3>Plan de Inversión</h3>
+    <p>Un Gerente de Investigación evalúa el debate y encomienda al Trader elaborar un plan concreto: cuánto, cuándo, y en qué condiciones operar.</p>
+  </div>
+  <div class="stage-card red">
+    <h3>Evaluación de Riesgo</h3>
+    <p>Tres perfiles de riesgo (agresivo, neutral y conservador) analizan el plan y lo cuestionan desde sus perspectivas, asegurando que se consideren todos los escenarios posibles.</p>
+  </div>
+  <div class="stage-card purple">
+    <h3>Decisión Final</h3>
+    <p>El Gerente de Portafolio consolida todo el análisis y emite la decisión final: <strong>Comprar, Mantener o Vender</strong>, acompañada de una justificación detallada.</p>
+  </div>
+</div>
+
+<footer>
+  TradingAgents v0.2.2 &nbsp;·&nbsp; Sistema de análisis bursátil con múltiples agentes de IA
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#ebf8ff',
+      primaryBorderColor: '#3182ce',
+      primaryTextColor: '#1a365d',
+      lineColor: '#718096',
+      fontSize: '14px'
+    },
+    flowchart: {
+      rankSpacing: 60,
+      nodeSpacing: 40,
+      curve: 'basis',
+      useMaxWidth: true
+    }
+  });
+</script>
+
+</body>
+</html>

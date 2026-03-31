@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TradingAgents — Arquitectura Técnica</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: #0d1117;
+      color: #c9d1d9;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 1.7rem;
+      color: #58a6ff;
+      letter-spacing: 1px;
+    }
+
+    header p {
+      margin-top: 8px;
+      font-size: 0.88rem;
+      color: #8b949e;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      line-height: 1.6;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .badge {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      color: #8b949e;
+    }
+
+    .badge span { color: #58a6ff; font-weight: bold; }
+
+    .diagram-container {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 32px 12px;
+      max-width: 1200px;
+      margin: 0 auto 36px;
+      overflow-x: auto;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      max-width: 1200px;
+      margin: 0 auto 36px;
+    }
+
+    .detail-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 18px;
+    }
+
+    .detail-card h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8b949e;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #21262d;
+      padding-bottom: 8px;
+    }
+
+    .detail-card ul {
+      list-style: none;
+      font-size: 0.82rem;
+      line-height: 1.8;
+    }
+
+    .detail-card ul li::before {
+      content: "▸ ";
+      color: #58a6ff;
+    }
+
+    .detail-card code {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.78rem;
+      color: #79c0ff;
+    }
+
+    .detail-card .file-path {
+      color: #a5d6ff;
+      font-size: 0.78rem;
+    }
+
+    .section-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #8b949e;
+      max-width: 1200px;
+      margin: 0 auto 12px;
+      padding-left: 4px;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 36px;
+      font-size: 0.72rem;
+      color: #484f58;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>TradingAgents — Arquitectura del Sistema</h1>
+  <p>Vista técnica del flujo de ejecución: desde la entrada del usuario hasta la decisión final,
+     incluyendo capas de datos, orquestación LangGraph, agentes LLM y gestión de estado.</p>
+</header>
+
+<div class="badge-row">
+  <div class="badge">Framework: <span>LangGraph</span></div>
+  <div class="badge">LLM: <span>OpenAI / Anthropic / Google</span></div>
+  <div class="badge">Data: <span>yfinance / Alpha Vantage</span></div>
+  <div class="badge">Indicadores: <span>stockstats</span></div>
+  <div class="badge">Validación: <span>Pydantic</span></div>
+  <div class="badge">Cache: <span>CSV local</span></div>
+  <div class="badge">Versión: <span>0.2.2</span></div>
+</div>
+
+<div class="diagram-container">
+  <div class="mermaid">
+flowchart TD
+
+    %% ── INPUT ────────────────────────────────────────────
+    IN(["CLI / main.py\nticker + trade_date"])
+
+    %% ── GRAPH SETUP ──────────────────────────────────────
+    GS["graph/setup.py\nTradingAgentsGraph\n─────────────────────\nBinds tools to LLMs\nBuilds LangGraph nodes\nRegisters conditional edges"]
+
+    %% ── STATE ────────────────────────────────────────────
+    ST[/"AgentState  TypedDict\n──────────────────────────────\ncompany_of_interest: str\ntrade_date: str\nmarket_report: str\nsentiment_report: str\nnews_report: str\nfundamentals_report: str\ninvestment_debate_state\ninvestment_plan: str\nrisk_debate_state\nfinal_trade_decision: str"/]
+
+    %% ── ANALYSTS ─────────────────────────────────────────
+    subgraph ANALYSTS ["ANALYST NODES  (parallel via LangGraph)"]
+        direction LR
+        AM["market_analyst\n──────────\nTools:\n• get_stock_data\n• get_indicators\nModel: quick_thinking_llm"]
+        AF["fundamentals_analyst\n──────────\nTools:\n• get_fundamentals\n• get_balance_sheet\n• get_cashflow\n• get_income_stmt\nModel: quick_thinking_llm"]
+        AN["news_analyst\n──────────\nTools:\n• get_news\n• get_global_news\nModel: quick_thinking_llm"]
+        AS["social_analyst\n──────────\nTools:\n• get_news\nModel: quick_thinking_llm"]
+    end
+
+    %% ── DATA LAYER ───────────────────────────────────────
+    subgraph DATA ["DATA LAYER  dataflows/"]
+        direction LR
+        DI["interface.py\nroute_to_vendor()\n──────────────\nTwo-tier routing:\n1. tool_vendors config\n2. data_vendors config\nFallback on RateLimitError"]
+        DYF["y_finance.py\nyfinance adapter\n─────────────\n• OHLCV download\n• stockstats.wrap()\n• df[indicator] lazy calc\n• ffill/bfill cleaning\n• CSV file cache\n  15yr history"]
+        DAV["alpha_vantage_*.py\nAlpha Vantage adapter\n─────────────\n• TIME_SERIES_DAILY\n• NEWS_SENTIMENT\n• BALANCE_SHEET\n• INCOME_STATEMENT\n• CASH_FLOW\n• Rate limit → raises\n  AlphaVantageRateLimitError"]
+        CACHE[("data_cache/\n{TICKER}-YFin\n-{start}-{end}.csv")]
+    end
+
+    %% ── RESEARCHERS ──────────────────────────────────────
+    subgraph RESEARCH ["RESEARCH DEBATE LOOP  (max_debate_rounds=1)"]
+        direction LR
+        BR["bull_researcher\nModel: deep_thinking_llm\nReads: all *_reports\nBuilds: BUY thesis"]
+        BEAR["bear_researcher\nModel: deep_thinking_llm\nReads: all *_reports\nBuilds: SELL thesis"]
+        RM["research_manager\nModel: deep_thinking_llm\nEvaluates debate\nEmits: investment_plan"]
+    end
+
+    %% ── TRADER ───────────────────────────────────────────
+    TR["trader\nModel: deep_thinking_llm\nReads: investment_plan\nGenerates: trader_investment_plan"]
+
+    %% ── RISK DEBATE ──────────────────────────────────────
+    subgraph RISK ["RISK DEBATE LOOP  (max_risk_discuss_rounds=1)"]
+        direction LR
+        RA["risk_aggressive\nHigh return focus\nChallenge conservatism"]
+        RN["risk_neutral\nBalanced perspective\nValidates plan"]
+        RC["risk_conservative\nCapital protection\nChallenge aggression"]
+    end
+
+    %% ── PORTFOLIO MANAGER ────────────────────────────────
+    PM["portfolio_manager\nModel: deep_thinking_llm\nFinal decision:\nBUY / OVERWEIGHT /\nHOLD / UNDERWEIGHT / SELL"]
+
+    %% ── SIGNAL PROCESSOR ─────────────────────────────────
+    SP["signal_processing.py\nSignalProcessor\nExtracts single rating word\nfrom full report text"]
+
+    %% ── OUTPUT ───────────────────────────────────────────
+    OUT(["final_trade_decision\n+ full justification report"])
+
+    %% ── CONNECTIONS ──────────────────────────────────────
+    IN --> GS
+    GS --> ST
+    ST --> ANALYSTS
+
+    AM -->|"calls"| DI
+    AF -->|"calls"| DI
+    AN -->|"calls"| DI
+    AS -->|"calls"| DI
+
+    DI -->|"yfinance route"| DYF
+    DI -->|"alpha_vantage route"| DAV
+    DYF <-->|"read/write"| CACHE
+    DAV -.->|"RateLimitError\nfallback"| DYF
+
+    ANALYSTS -->|"writes *_report fields"| ST
+    ST --> BR
+    ST --> BEAR
+    BR -->|"InvestDebateState"| RM
+    BEAR -->|"InvestDebateState"| RM
+    RM -->|"investment_plan"| ST
+
+    ST --> TR
+    TR -->|"trader_investment_plan"| ST
+
+    ST --> RA
+    ST --> RN
+    ST --> RC
+    RA -->|"RiskDebateState"| PM
+    RN -->|"RiskDebateState"| PM
+    RC -->|"RiskDebateState"| PM
+
+    PM -->|"final_trade_decision"| ST
+    ST --> SP
+    SP --> OUT
+
+    %% ── STYLES ───────────────────────────────────────────
+    classDef io        fill:#0d2137,stroke:#58a6ff,color:#cae8ff,font-weight:bold
+    classDef setup     fill:#0d1f12,stroke:#3fb950,color:#b2f0bb
+    classDef state     fill:#1a1226,stroke:#8957e5,color:#d2a8ff
+    classDef analyst   fill:#0d1f12,stroke:#3fb950,color:#aff5b4
+    classDef data      fill:#1b1200,stroke:#e3b341,color:#f8e3a1
+    classDef cache     fill:#0d1117,stroke:#484f58,color:#8b949e
+    classDef research  fill:#1c1000,stroke:#f0883e,color:#ffa657
+    classDef trader    fill:#0d1f12,stroke:#3fb950,color:#aff5b4
+    classDef risk      fill:#160d0d,stroke:#f85149,color:#ffa198
+    classDef pm        fill:#1a1226,stroke:#8957e5,color:#d2a8ff
+    classDef signal    fill:#0d1117,stroke:#30363d,color:#8b949e
+    classDef output    fill:#0d2137,stroke:#58a6ff,color:#cae8ff,font-weight:bold
+
+    class IN,OUT io
+    class GS setup
+    class ST state
+    class AM,AF,AN,AS analyst
+    class DI,DYF,DAV data
+    class CACHE cache
+    class BR,BEAR,RM research
+    class TR trader
+    class RA,RN,RC risk
+    class PM pm
+    class SP signal
+  </div>
+</div>
+
+<div class="section-title">REFERENCIA DE COMPONENTES</div>
+
+<div class="details-grid">
+
+  <div class="detail-card">
+    <h3>Orquestación — LangGraph</h3>
+    <ul>
+      <li><code>graph/setup.py</code> <span class="file-path">TradingAgentsGraph</span></li>
+      <li><code>graph/conditional_logic.py</code> routing condicional</li>
+      <li><code>graph/propagation.py</code> extracción de resultados</li>
+      <li><code>graph/reflection.py</code> aprendizaje iterativo</li>
+      <li><code>graph/signal_processing.py</code> extrae rating final</li>
+      <li>Estado compartido via <code>AgentState</code> TypedDict</li>
+    </ul>
+  </div>
+
+  <div class="detail-card">
+    <h3>Estado del Agente</h3>
+    <ul>
+      <li><code>agents/utils/agent_states.py</code></li>
+      <li><code>company_of_interest</code> ticker analizado</li>
+      <li><code>trade_date</code> fecha de análisis</li>
+      <li><code>market_report</code> output analista mercado</li>
+      <li><code>fundamentals_report</code> output analista fundamentales</li>
+      <li><code>news_report</code> output analista noticias</li>
+      <li><code>sentiment_report</code> output analista sentimiento</li>
+      <li><code>investment_debate_state</code> rondas de debate</li>
+      <li><code>risk_debate_state</code> debate de riesgo</li>
+      <li><code>final_trade_decision</code> decisión final</li>
+    </ul>
+  </div>
+
+  <div class="detail-card">
+    <h3>Capa de Datos — Routing</h3>
+    <ul>
+      <li><code>dataflows/interface.py</code> router central</li>
+      <li>Prioridad 1: <code>tool_vendors[method]</code></li>
+      <li>Prioridad 2: <code>data_vendors[category]</code></li>
+      <li>Fallback solo en <code>AlphaVantageRateLimitError</code></li>
+      <li>Categorías: <code>core_stock_apis</code>, <code>technical_indicators</code>, <code>fundamental_data</code>, <code>news_data</code></li>
+      <li>Default: todo a <code>yfinance</code></li>
+    </ul>
+  </div>
+
+  <div class="detail-card">
+    <h3>Cálculo de Indicadores</h3>
+    <ul>
+      <li><code>dataflows/stockstats_utils.py</code></li>
+      <li><code>dataflows/y_finance.py</code></li>
+      <li>Librería: <code>stockstats.wrap(df)</code></li>
+      <li>Trigger lazy: acceso a <code>df[indicator]</code></li>
+      <li>Pre-procesamiento: <code>ffill().bfill()</code>, NaN drop, timezone strip</li>
+      <li>Cache: CSV local 15 años de historia</li>
+      <li>Retry: backoff exponencial 2s→4s→8s</li>
+      <li>13 indicadores: SMA50/200, EMA10, MACD, RSI, Bollinger, ATR, VWMA</li>
+    </ul>
+  </div>
+
+  <div class="detail-card">
+    <h3>Nodos Analistas</h3>
+    <ul>
+      <li><code>agents/analysts/market_analyst.py</code></li>
+      <li><code>agents/analysts/fundamentals_analyst.py</code></li>
+      <li><code>agents/analysts/news_analyst.py</code></li>
+      <li><code>agents/analysts/social_media_analyst.py</code></li>
+      <li>LLM: <code>quick_thinking_llm</code> (gpt-5-mini)</li>
+      <li>Herramientas via <code>llm.bind_tools()</code></li>
+      <li>Tool schemas de <code>Annotated</code> + <code>@tool</code></li>
+      <li>El LLM decide hasta 8 indicadores relevantes</li>
+    </ul>
+  </div>
+
+  <div class="detail-card">
+    <h3>Debate y Decisión</h3>
+    <ul>
+      <li><code>agents/researchers/bull_researcher.py</code></li>
+      <li><code>agents/researchers/bear_researcher.py</code></li>
+      <li><code>agents/managers/research_manager.py</code></li>
+      <li><code>agents/trader/trader.py</code></li>
+      <li><code>agents/risk_mgmt/</code> (3 perfiles)</li>
+      <li><code>agents/managers/portfolio_manager.py</code></li>
+      <li>LLM: <code>deep_thinking_llm</code> (gpt-5.2)</li>
+      <li>Config: <code>max_debate_rounds=1</code></li>
+      <li>Config: <code>max_risk_discuss_rounds=1</code></li>
+      <li>Output: BUY / OVERWEIGHT / HOLD / UNDERWEIGHT / SELL</li>
+    </ul>
+  </div>
+
+  <div class="detail-card">
+    <h3>Configuración</h3>
+    <ul>
+      <li><code>tradingagents/default_config.py</code></li>
+      <li><code>llm_provider</code>: openai / anthropic / google</li>
+      <li><code>deep_think_llm</code>: gpt-5.2</li>
+      <li><code>quick_think_llm</code>: gpt-5-mini</li>
+      <li><code>data_cache_dir</code>: ./dataflows/data_cache</li>
+      <li><code>results_dir</code>: ./results</li>
+      <li><code>max_recur_limit</code>: 100</li>
+    </ul>
+  </div>
+
+  <div class="detail-card">
+    <h3>Herramientas del Agente</h3>
+    <ul>
+      <li><code>agents/utils/core_stock_tools.py</code></li>
+      <li><code>agents/utils/technical_indicators_tools.py</code></li>
+      <li><code>agents/utils/fundamental_data_tools.py</code></li>
+      <li><code>agents/utils/news_data_tools.py</code></li>
+      <li>Todas usan <code>@tool</code> + <code>Annotated</code></li>
+      <li>Todas llaman <code>route_to_vendor()</code></li>
+      <li>Retornan strings formateados (CSV / Markdown)</li>
+    </ul>
+  </div>
+
+</div>
+
+<footer>
+  TradingAgents v0.2.2 &nbsp;·&nbsp; LangGraph + LangChain + stockstats + yfinance / Alpha Vantage
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#0d1f12',
+      primaryBorderColor: '#3fb950',
+      primaryTextColor: '#aff5b4',
+      lineColor: '#484f58',
+      fontSize: '12px',
+      edgeLabelBackground: '#0d1117'
+    },
+    flowchart: {
+      rankSpacing: 55,
+      nodeSpacing: 35,
+      curve: 'basis',
+      useMaxWidth: true
+    }
+  });
+</script>
+
+</body>
+</html>
